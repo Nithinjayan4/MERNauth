@@ -1,45 +1,43 @@
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import userModel from "../models/userModel";
+import userModel from "../models/userModel.js";
 
 export const register = async (req, res) => {
   const { name, email, password } = req.body;
 
   if (!name || !email || !password) {
-    // check if all fields are filled
-    return res.jason({ success: false, message: "Please fill all the fields" });
-  }
+    return res.json({ success: false, message: 'Missing Details' })
+}
 
-  try {
-    const existingUser = await userModel.findone({ email });
+try {
+
+    const existingUser = await userModel.findOne({ email })
 
     if (existingUser) {
-      return res.json({ success: false, message: "User already exists" });
+        return res.json({ success: false, message: "User already exists" });
     }
+    
 
-    const hashedPassword = await bcrypt.hash(password, 10); // hash the password
-    const user = new userModel.create({
-      name,
-      email,
-      password: hashedPassword,
-    }); // create a new user
-    await user.save(); // save the user to the database
+    const hashedPassword = await bcrypt.hash(password, 10)
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "7d",
-    }); // create a token for the user
+    const user = new userModel({name, email, password:hashedPassword})
+    await user.save();
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict", // set cookie options
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    const token = jwt.sign({id: user._id}, process.env.JWT_SECRET, { expiresIn: '7d'});
+
+    res.cookie('token', token, {
+        httpOnly:true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 
+        'none' : 'strict',
+        maxAge:7 * 24 * 60 * 60 * 1000
     });
-    return res.json({ success: true });
-  } catch {
-    return res.json({ success: false, message: "Internal server error" });
+    return res.json({success: true});
+
+  } catch (error) {
+      res.json({ success: false, message: error.message })
   }
-};
+}
 /// login user
 export const login = async (req, res) => {
   const { email, password } = req.body;
